@@ -103,7 +103,7 @@ Also you have to comment out the line where smbus.h was included.
 
 After writing it an compiling. You have to enable the computer to execute the file low_level_control.py by,
 
-$ chmod -x low_level_control.py
+$ chmod +x low_level_control.py
 
 8. Test if the LLC Node works:
 
