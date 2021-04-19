@@ -155,7 +155,36 @@ $ export ROS_MASTER_URI=http://<host_ip>:11311
 
 $ rosrun teleop_twist_keyboard teleop_twist_keyboard.py
 
+11. Lets do the same for the DC Motors
 
+Clone the ros-motorhat-node
+
+$ cd /catkin_ws/src
+$ git clone https://github.com/matpalm/ros-motorhat-node.git
+
+$ cd ..
+$ catkin_make
+$ source devel/setup.bash
+
+run the node with:
+
+$ rosrun motor_hat motor_hat_node
+
+And test it with:
+
+rostopic pub -1 /cmd std_msgs/Int16MultiArray "{data:[200, 200, 200, 200]}"
+
+if it is not working, maybe the i2c adress of your adafruit motor hat is different.
+
+check it out with:
+
+$ sudo i2cdetect -y 1
+
+Here you should see something at 0x40... that should be the PWM Module. And something near 0x60. In my case it was 0x61.
+
+So I had to change it in the source code of motor_hat_node.cpp and I had to recompile everything.
+
+#TODO combine the servo and the dc with the teleop_twist.
 
 
 
