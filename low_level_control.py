@@ -6,6 +6,7 @@ installed
 """
 import rospy
 from i2cpwm_board.msg import Servo, ServoArray
+from std_msgs.msg import Int16MultiArray #for the DC HAT
 from geometry_msgs.msg import Twist
 import time
 import csv
@@ -58,7 +59,7 @@ class DkLowLevelCtrl():
         rospy.init_node('dk_llc')
 
         self.actuators = {}
-        #self.actuators['throttle']  = ServoConvert(id=1)
+        self.actuators['throttle']  = ServoConvert(id=61) #this is a dc motor
         self.actuators['steering_1']  = ServoConvert(id=1, direction=-1) #-- positive left
 	self.actuators['steering_2']  = ServoConvert(id=2, direction=-1) #-- positiv$
 	self.actuators['steering_3']  = ServoConvert(id=3, direction=-1) #-- positiv$
@@ -68,9 +69,14 @@ class DkLowLevelCtrl():
         self._servo_msg       = ServoArray()
         for i in range(4): self._servo_msg.servos.append(Servo())
 
+	self._dc_msg 	      = Int16MultiArray()
         #--- Create the servo array publisher
         self.ros_pub_servo_array    = rospy.Publisher("/servos_absolute", ServoArray, queue_size=1)
-        rospy.loginfo("> Publisher corrrectly initialized")
+        rospy.loginfo("> Servo Publisher corrrectly initialized")
+
+        #--- Create the DC HAT array publisher
+        self.ros_pub_dc_array    = rospy.Publisher("/cmd", Int16MultiArray, queue_size=1)
+        rospy.loginfo("> DC Publisher corrrectly initialized")
 
         #--- Create the Subscriber to Twist commands
         self.ros_sub_twist          = rospy.Subscriber("/cmd_vel", Twist, self.set_actuators_from_cmdvel)
@@ -90,7 +96,7 @@ class DkLowLevelCtrl():
         self._last_time_cmd_rcv = time.time()
 
         #-- Convert vel into servo values
-        #self.actuators['throttle'].get_value_out(message.linear.x)
+        self.actuators['throttle'].get_value_out(message.linear.x)
         self.actuators['steering_1'].get_value_out(message.angular.z)
         self.actuators['steering_2'].get_value_out(message.angular.z)
         self.actuators['steering_3'].get_value_out(message.angular.z)
@@ -100,7 +106,7 @@ class DkLowLevelCtrl():
 
     def set_actuators_idle(self):
         #-- Convert vel into servo values
-       # self.actuators['throttle'].get_value_out(0)
+        self.actuators['throttle'].get_value_out(0)
         self.actuators['steering_1'].get_value_out(0)
 	self.actuators['steering_2'].get_value_out(0)
 	self.actuators['steering_3'].get_value_out(0)
@@ -111,11 +117,15 @@ class DkLowLevelCtrl():
 
     def send_servo_msg(self):
         for actuator_name, servo_obj in self.actuators.iteritems():
-            self._servo_msg.servos[servo_obj.id-1].servo = servo_obj.id
-            self._servo_msg.servos[servo_obj.id-1].value = servo_obj.value_out
+	    if 'steering' in actuator_name:
+            	self._servo_msg.servos[servo_obj.id-1].servo = servo_obj.id
+            	self._servo_msg.servos[servo_obj.id-1].value = servo_obj.value_out
+	    elif 'throttle' in actuator_name:
+	 	self._dc_msg.data = [-servo_obj.value_out,-servo_obj.value_out,-servo_obj.value_out,servo_obj.value_out]
             rospy.loginfo("Sending to %s command %d"%(actuator_name, servo_obj.value_out))
 
         self.ros_pub_servo_array.publish(self._servo_msg)
+	self.ros_pub_dc_array.publish(self._dc_msg)
 
     @property
     def is_controller_connected(self):
